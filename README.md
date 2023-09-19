@@ -13,6 +13,23 @@
 
 *Read our [contributing guide][CONTRIBUTING] if you're looking to contribute (issues/PRs/etc).*
 
+## THIS FORK 🍴
+
+**Added commands:**
+- **edit [#]**: edits the item (or the whole file if unspecified) in vim
+- **cd**: works with wrapper.sh to allow quick cd to TODO_DIR
+    - Example:
+        ```shell
+        alias T="source ~/todo.txt-cli/wrapper.sh; todosh"
+        T cd # Takes you to $TODO_DIR
+        T add "everything else still works the same"
+        ```
+
+**Added features:**
+- Automatically commits and pushes when you take write actions. Must set up a git repo in your TODO_DIR. Can enable/disable both commit and push in todo.cfg
+
+**Other:**
+- Changed config install so it doesn't secretly add `.todo` to TODO_DIR -- just put that in the default value, obviously
 
 ## Installation
 
@@ -24,7 +41,7 @@ Download the latest stable [release][release] for use on your desktop or server.
 ```shell
 brew install todo-txt
 
-# For macOS on x86 CPU 
+# For macOS on x86 CPU
 cp -n /usr/local/opt/todo-txt/todo.cfg ~/.todo.cfg
 
 # For macOS on arm CPU
