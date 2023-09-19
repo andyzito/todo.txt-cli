@@ -16,7 +16,8 @@
 ## THIS FORK 🍴
 
 **Added commands:**
-- **edit [#]**: edits the item (or the whole file if unspecified) in vim
+- **edit [item#]**: edits the item (or the whole file if unspecified) in vim
+- **l**: reruns the last **ls**
 - **cd**: works with wrapper.sh to allow quick cd to TODO_DIR
     - Example:
         ```shell

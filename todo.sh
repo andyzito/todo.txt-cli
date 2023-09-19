@@ -1330,6 +1330,11 @@ case $action in
 "list" | "ls" )
     shift  ## Was ls; new $1 is first search term
     _list "$TODO_FILE" "$@"
+    echo "$TODO_FILE $@" > "$TODO_DIR/.last_ls"
+    ;;
+
+"l" )
+    _list $(cat "$TODO_DIR/.last_ls")
     ;;
 
 "listall" | "lsa" )
