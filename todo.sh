@@ -480,9 +480,11 @@ replaceOrPrepend()
         echo "$item $todo"
         echo "TODO: Replaced task with:"
         echo "$item $newtodo"
+        maybeGitCommit "REPLACE" "($item) with \"$newtodo\"" "Was: ($item) $todo"
         ;;
       prepend)
         echo "$item $newtodo"
+        maybeGitCommit "PREPEND" "($item) << \"$input\"" "($item) \"$input\" + \"$todo\""
         ;;
     esac
   fi
@@ -823,6 +825,11 @@ _addto() {
         echo "$TASKNUM $input"
         echo "$(getPrefix "$file"): $TASKNUM added."
     fi
+    if [ $file = "$TODO_FILE" ]; then
+        maybeGitCommit "ADD" "($TASKNUM) $input"
+    else
+        maybeGitCommit "ADD" "($(basename "$file")) ($TASKNUM) $input"
+    fi
 }
 
 shellquote()
@@ -1037,6 +1044,44 @@ listWordsWithSigil()
 		| sort -u
 }
 
+maybeGitCommit()
+{
+    if [ "$TODOTXT_GIT_AUTOCOMMIT" = 1 ]; then
+        action="$1"
+        title="[$1] $2"
+        desc="$3"
+        msg="$title"
+        if [ -n "$desc" ]; then
+            msg="${title}"$'\n\n'"${desc}"
+        fi
+        cd "$TODO_DIR"
+        git add .
+        git commit -m "$msg" > /dev/null # git commit -m "${msg:0:72}"
+        if [ "$?" != 0 ]; then
+            echo -e "\033[31m●\033[0m git commit failed"
+            cd - > /dev/null
+            return
+        fi
+        status="commmited"
+
+        if [ "$TODOTXT_GIT_AUTOPUSH" -gt 0 ]; then
+            GAP=$(git rev-list --count @{u}..)
+            if [ "$GAP" -ge "$TODOTXT_GIT_AUTOPUSH" ]; then
+                git push --quiet
+                if [ "$?" != 0 ]; then
+                    echo -e "\033[31m●\033[0m git push failed"
+                    cd - > /dev/null
+                    return
+                fi
+                status+=" and pushed"
+            fi
+        fi
+        echo -e "\033[32m●\033[0m $status"
+        cd - > /dev/null
+        return
+    fi
+}
+
 export -f cleaninput getPrefix getTodo getNewtodo shellquote filtercommand _list listWordsWithSigil getPadding _format die
 
 # == HANDLE ACTION ==
@@ -1134,6 +1179,7 @@ case $action in
         if [ "$TODOTXT_VERBOSE" -gt 0 ]; then
             getNewtodo "$item"
             echo "$item $newtodo"
+            maybeGitCommit "APPEND" "($item) += \"$input\"" "($item) \"$todo\" + \"$input\""
     fi
     else
         die "TODO: Error appending task $item."
@@ -1149,6 +1195,7 @@ case $action in
     if [ "$TODOTXT_VERBOSE" -gt 0 ]; then
         echo "TODO: $TODO_FILE archived."
     fi
+    maybeGitCommit "ARCHIVE" "$TODO_FILE_BASE"
     ;;
 
 "del" | "rm" )
@@ -1166,6 +1213,7 @@ case $action in
                 # leave blank line behind (preserves line numbers)
                 sed -i.bak -e "${item}s/^.*//" "$TODO_FILE"
             fi
+            maybeGitCommit "DEL" "($item) $todo"
             if [ "$TODOTXT_VERBOSE" -gt 0 ]; then
                 echo "$item $todo"
                 echo "TODO: $item deleted."
@@ -1211,6 +1259,7 @@ case $action in
 		echo "$item $newtodo"
 		echo "TODO: $item deprioritized."
 	    fi
+        maybeGitCommit "DEPRIORITIZE" "($item) $todo"
 	else
 	    echo "TODO: $item is not prioritized."
 	fi
@@ -1238,6 +1287,7 @@ case $action in
                 getNewtodo "$item"
                 echo "$item $newtodo"
                 echo "TODO: $item marked as done."
+                maybeGitCommit "DO" "($item) $todo"
         fi
         else
             echo "TODO: $item is already marked done."
@@ -1362,6 +1412,7 @@ case $action in
         if [ "$TODOTXT_VERBOSE" -gt 0 ]; then
             echo "$item $todo"
             echo "TODO: $item moved from '$src' to '$dest'."
+            maybeGitCommit "MOVE" "($item) from '$(basename "$src")' to '$(basename "$dest")'" "($item) \"$todo\""
         fi
     else
         echo "TODO: No tasks moved."
@@ -1400,8 +1451,10 @@ note: PRIORITY must be anywhere from A to Z."
             if [ "$oldpri" != "$newpri" ]; then
                 if [ "$oldpri" ]; then
                     echo "TODO: $item re-prioritized from ($oldpri) to ($newpri)."
+                    maybeGitCommit "PRIORITIZE" "($item = $oldpri -> $newpri) $todo"
                 else
                     echo "TODO: $item prioritized ($newpri)."
+                    maybeGitCommit "PRIORITIZE" "($item = $newpri) $todo"
                 fi
             fi
         fi
@@ -1436,6 +1489,7 @@ note: PRIORITY must be anywhere from A to Z."
         echo "${NEWREPORT}" >> "$REPORT_FILE"
         echo "${NEWREPORT}"
         [ "$TODOTXT_VERBOSE" -gt 0 ] && echo "TODO: Report file updated."
+        maybeGitCommit "REPORT" "$NEWREPORT"
     fi
     ;;
 
@@ -1480,6 +1534,7 @@ note: PRIORITY must be anywhere from A to Z."
         echo "TODO: No duplicate tasks found"
     else
         echo "TODO: $deduplicateNum duplicate task(s) removed"
+        maybeGitCommit "DEDUP" "$deduplicateNum duplicate task(s) removed"
     fi
     ;;
 
@@ -1515,20 +1570,22 @@ note: PRIORITY must be anywhere from A to Z."
     errmsg="usage: $TODO_SH edit [ITEM#]"
     item=$2
     if [ -n "$item" ]; then
-        echo "Editing $item: '$todo'"
-        EDITOR=${EDITOR:-vim} # Default to vim
         getTodo "$item" # Item text is now in $todo
+        EDITOR=${EDITOR:-vim} # Default to vim
         # Extract line number #item from $TODO_FILE...
         sed -n "${item}p" "$TODO_FILE" > $TODO_DIR/.edit-$item.txt
         # Edit the item...
         $EDITOR $TODO_DIR/.edit-$item.txt
         # Replace line number #item in $TODO_FILE with the edited item...
-        sed -i.bak "${item}s/.*/$(cat $TODO_DIR/.edit-$item.txt)/" "$TODO_FILE"
+        newtodo="$(cat $TODO_DIR/.edit-$item.txt)"
+        sed -i.bak "${item}s/.*/$newtodo/" "$TODO_FILE"
         # Remove our temp file.
         rm $TODO_DIR/.edit-$item.txt
+        maybeGitCommit "EDIT" "($item) $newtodo" "Was: ($item) $todo"
     else
         EDITOR=${EDITOR:-'vim -c "set number"'} # Run vim with line numbers on
         eval $EDITOR "$TODO_FILE"
+        maybeGitCommit "EDIT" "$TODO_FILE_BASE"
     fi
     ;;
 
