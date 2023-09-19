@@ -1330,11 +1330,19 @@ case $action in
 "list" | "ls" )
     shift  ## Was ls; new $1 is first search term
     _list "$TODO_FILE" "$@"
-    echo "$TODO_FILE $@" > "$TODO_DIR/.last_ls"
+    if [ "$#" -gt 0 ]; then
+        echo "$TODO_FILE $@" > "$TODO_DIR/.last_ls"
+    fi
     ;;
 
 "l" )
-    _list $(cat "$TODO_DIR/.last_ls")
+    shift  ## Was ls; new $1 is first search term
+    if [ "$#" -gt 0 ]; then
+        _list "$TODO_FILE" "$@"
+        echo "$TODO_FILE $@" > "$TODO_DIR/.last_ls"
+    else
+        _list $(cat "$TODO_DIR/.last_ls")
+    fi
     ;;
 
 "listall" | "lsa" )
