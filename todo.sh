@@ -1532,6 +1532,10 @@ note: PRIORITY must be anywhere from A to Z."
     fi
     ;;
 
+"cd" ) # Echo the TODO_DIR to be picked up by wrapper.sh
+    echo "$TODO_DIR"
+    ;;
+
 * )
     usage;;
 esac
