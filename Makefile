@@ -66,7 +66,7 @@ install: installdirs
 	$(INSTALL_PROGRAM) todo.sh $(DESTDIR)$(bindir)/todo.sh
 	$(INSTALL_DATA) todo_completion $(DESTDIR)$(datarootdir)/todo
 	[ -e $(DESTDIR)$(sysconfdir)/todo/config ] || \
-	    sed "s/^\(export[ \t]*TODO_DIR=\).*/\1~\/.todo/" todo.cfg > $(DESTDIR)$(sysconfdir)/todo/config
+	    cat todo.cfg > $(DESTDIR)$(sysconfdir)/todo/config
 
 uninstall:
 	rm -f $(DESTDIR)$(bindir)/todo.sh
