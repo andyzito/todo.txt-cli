@@ -492,7 +492,7 @@ fixMissingEndOfLine()
 {
     # Parameters:    $1: todo file; empty means $TODO_FILE.
     todo_path="${1:-$TODO_FILE}"
-    [[ -f $todo_path && $(tail -c1 "$todo_path") ]] && echo "" >> "$todo_path"    
+    [[ -f $todo_path && $(tail -c1 "$todo_path") ]] && echo "" >> "$todo_path"
 }
 
 uppercasePriority()
@@ -1494,6 +1494,41 @@ note: PRIORITY must be anywhere from A to Z."
                 echo "$action"
             fi
         done
+    fi
+    ;;
+
+# Command: Edit
+# ====================
+# CREDIT: https://git.sr.ht/~proycon/todotxt-more/tree/master/item/todo.actions.d/edit
+
+# [ "$action" = "usage" ] && {
+#   echo "  Edit:"
+#   echo "    edit [[itemno]]"
+#   echo "      Edit the specified item in the default editor"
+#   echo "    edit"
+#   echo "      Open todo.txt in the editor"
+#   echo ""
+#   exit
+# }
+
+"edit" )
+    errmsg="usage: $TODO_SH edit [ITEM#]"
+    item=$2
+    if [ -n "$item" ]; then
+        echo "Editing $item: '$todo'"
+        EDITOR=${EDITOR:-vim} # Default to vim
+        getTodo "$item" # Item text is now in $todo
+        # Extract line number #item from $TODO_FILE...
+        sed -n "${item}p" "$TODO_FILE" > $TODO_DIR/.edit-$item.txt
+        # Edit the item...
+        $EDITOR $TODO_DIR/.edit-$item.txt
+        # Replace line number #item in $TODO_FILE with the edited item...
+        sed -i.bak "${item}s/.*/$(cat $TODO_DIR/.edit-$item.txt)/" "$TODO_FILE"
+        # Remove our temp file.
+        rm $TODO_DIR/.edit-$item.txt
+    else
+        EDITOR=${EDITOR:-'vim -c "set number"'} # Run vim with line numbers on
+        eval $EDITOR "$TODO_FILE"
     fi
     ;;
 
